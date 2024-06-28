@@ -4,8 +4,10 @@ import sys
 enc = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`|~ \n"
 
 def decode_s(s):
-    return ''.join([enc[ord(c) - 33] for c in s[1:]]j
+    return ''.join([enc[ord(c) - 33] for c in s[1:]])
 
+def encode_s(s):
+    return 'S' + ''.join([chr(enc.index(c) + 33) for c in s])
 
 if os.environ.get('ICFP_DECODE_TEST', False):
     # Test the function
@@ -26,4 +28,15 @@ if os.environ.get('ICFP_DECODE_TEST', False):
             print(f"Error decoding {s}: {str(e)}")
             print()
 
-print(decode_s(sys.argv[1]))
+cmd = sys.argv[1]
+if cmd == 'decode':
+    v = sys.stdin.read()
+    print(decode_s(v))
+    sys.exit(0)
+elif cmd == 'encode':
+    v = sys.stdin.read()
+    print(encode_s(v))
+    sys.exit(0)
+else:
+    print("Unknown command")
+    sys.exit(1)

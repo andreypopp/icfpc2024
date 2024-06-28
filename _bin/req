@@ -1,4 +1,4 @@
-curl \
+curl -s \
   -H 'Authorization: Bearer 808ca256-780f-4a6d-81cb-f89355cd7440' \
   -d "$1" \
   'https://boundvariable.space/communicate'
