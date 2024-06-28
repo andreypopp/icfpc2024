@@ -24,6 +24,8 @@ def sub(p1, p2):
 path = []
 data = read()
 s = sorted(data, key=key)
+# problems 2, 5, 7, 9, 11, 17 are better w/o sorting
+# s=data
 
 pos = (0, 0)
 v = (0, 0)
