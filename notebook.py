@@ -70,26 +70,22 @@ def rle(n, w):
 ### expressions
 
 class O:
-    def __str__(self):
-        return self.encode()
-    def subst(self, _v, _o):
-        return self
+    def __str__(self):          return self.encode()
+    def subst(self, _v, _o):    return self
+    def expect_I(self):     assert isinstance(self, I);  return self
+    def expect_S(self):     assert isinstance(self, S);  return self
+    def expect_TF(self):    assert isinstance(self, TF); return self
+    def expect_L(self):     assert isinstance(self, L);  return self
 
 class S(O):
-    def __init__(self, v):
-        self.v = v
-    def encode(self):
-        return encode_s(self.v)
-    def eval(self):
-        return self
+    def __init__(self, v): self.v = v
+    def encode(self): return encode_s(self.v)
+    def eval(self): return self
 
 class TF(O):
-    def __init__(self, v):
-        self.v = v
-    def encode(self):
-        return 'T' if self.v else 'F'
-    def eval(self):
-        return self
+    def __init__(self, v): self.v = v
+    def encode(self): return 'T' if self.v else 'F'
+    def eval(self): return self
 
 class I(O):
     alphabet = [ord('!')+x for x in range(94)]
@@ -127,21 +123,13 @@ class U(O):
 
     def eval(self):
         if self.v == '-':
-            x = self.x.eval()
-            assert isinstance(x, I)
-            return I(-x.v)
+            return I(-self.x.eval().expect_I().v)
         if self.v == '!':
-            x = self.x.eval()
-            assert isinstance(x, TF)
-            return TF(not x.v)
+            return TF(not self.x.eval().expect_TF().v)
         if self.v == '#':
-            x = self.x.eval()
-            assert isinstance(x, S)
-            return I(base94_to_base10(x.encode()[1:]))
+            return I(base94_to_base10(self.x.eval().expect_S().encode()[1:]))
         if self.v == '$':
-            x = self.x.eval()
-            assert isinstance(x, I)
-            return S(decode_s('S' + x.encode()[1:]))
+            return S(decode_s('S' + self.x.eval().expect_I().encode()[1:]))
         assert False, "unknown unary operator"
     def __str__(self):
         return f'U({self.v}, {self.x})'
@@ -159,90 +147,36 @@ class B(O):
 
     def eval(self):
         if self.v == '+':
-            a = self.a.eval()
-            b = self.b.eval()
-            assert isinstance(a, I)
-            assert isinstance(b, I)
-            return I(a.v + b.v)
+            return I(self.a.eval().expect_I().v + self.b.eval().expect_I().v)
         if self.v == '-':
-            a = self.a.eval()
-            b = self.b.eval()
-            assert isinstance(a, I)
-            assert isinstance(b, I)
-            return I(a.v - b.v)
+            return I(self.a.eval().expect_I().v - self.b.eval().expect_I().v)
         if self.v == '*':
-            a = self.a.eval()
-            b = self.b.eval()
-            assert isinstance(a, I)
-            assert isinstance(b, I)
-            return I(a.v * b.v)
+            return I(self.a.eval().expect_I().v * self.b.eval().expect_I().v)
         if self.v == '/':
-            a = self.a.eval()
-            b = self.b.eval()
-            assert isinstance(a, I)
-            assert isinstance(b, I)
-            return I(a.v // b.v)
+            return I(self.a.eval().expect_I().v // self.b.eval().expect_I().v)
         if self.v == '%':
-            a = self.a.eval()
-            b = self.b.eval()
-            assert isinstance(a, I)
-            assert isinstance(b, I)
-            return I(a.v % b.v)
+            return I(self.a.eval().expect_I().v % self.b.eval().expect_I().v)
         if self.v == '<':
-            a = self.a.eval()
-            b = self.b.eval()
-            assert isinstance(a, I)
-            assert isinstance(b, I)
-            return TF(a.v < b.v)
+            return TF(self.a.eval().expect_I().v < self.b.eval().expect_I().v)
         if self.v == '>':
-            a = self.a.eval()
-            b = self.b.eval()
-            assert isinstance(a, I)
-            assert isinstance(b, I)
-            return TF(a.v > b.v)
+            return TF(self.a.eval().expect_I().v > self.b.eval().expect_I().v)
         if self.v == '=':
-            a = self.a.eval()
-            b = self.b.eval()
-            assert isinstance(a, I)
-            assert isinstance(b, I)
-            return TF(a.v == b.v)
+            return TF(self.a.eval().expect_I().v == self.b.eval().expect_I().v)
         if self.v == '&':
-            a = self.a.eval()
-            b = self.b.eval()
-            assert isinstance(a, TF)
-            assert isinstance(b, TF)
-            return TF(a.v and b.v)
+            return TF(self.a.eval().expect_TF().v and self.b.eval().expect_TF().v)
         if self.v == '|':
-            a = self.a.eval()
-            b = self.b.eval()
-            assert isinstance(a, TF)
-            assert isinstance(b, TF)
-            return TF(a.v or b.v)
+            return TF(self.a.eval().expect_TF().v or self.b.eval().expect_TF().v)
         if self.v == '.':
-            a = self.a.eval()
-            b = self.b.eval()
-            assert isinstance(a, S)
-            assert isinstance(b, S)
-            return S(a.v + b.v)
+            return TF(self.a.eval().expect_S().v + self.b.eval().expect_S().v)
         if self.v == 'T': # take
-            a = self.a.eval()
-            b = self.b.eval()
-            assert isinstance(a, I)
-            assert isinstance(b, S)
-            return S(b.v[:a.v])
+            return S(self.b.eval().expect_S().v[:self.a.eval().expect_I().v])
         if self.v == 'D': # drop
-            a = self.a.eval()
-            b = self.b.eval()
-            assert isinstance(a, I)
-            assert isinstance(b, S)
-            return S(b.v[a.v:])
+            return S(self.b.eval().expect_S().v[self.a.eval().expect_I().v:])
         if self.v == '$':
-            a = self.a.eval()
-            assert isinstance(a, L)
+            a = self.a.eval().expect_L()
             return a.e.subst(a.v, self.b).eval()
-            assert False, "not implemented"
         else:
-            assert False, "unknown binary operator"
+            assert False, f"unknown binary operator: {self.v}"
 
     def encode(self):
         return f'B{self.v} {self.a.encode()} {self.b.encode()}'
@@ -259,10 +193,8 @@ class If(O):
     def eval(self):
         c = self.c.eval()
         assert isinstance(c, TF)
-        if c.v:
-            return self.t.eval()
-        else:
-            return self.e.eval()
+        if c.v: return self.t.eval()
+        else: return self.e.eval()
 
 class L(O):
     def __init__(self, v, e):
@@ -285,8 +217,7 @@ class V(O):
         self.v = v
 
     def subst(self, v, o):
-        if self.v == v:
-            return o
+        if self.v == v: return o
         return self
 
     def encode(self):
@@ -307,28 +238,15 @@ class parse:
         self.tokens = s.split(' ')
     def expr(self):
         tok = self.tokens.pop(0)
-        if tok[0] == 'I':
-            # TODO: shift alphabet
-            return I(base94_to_base10(tok[1:]))
-        if tok[0] == 'S':
-            # TODO: shift alphabet
-            return S(decode_s(tok))
-        if tok == 'T':
-            return TF(True)
-        if tok == 'F':
-            return TF(False)
-        if tok[0] == 'U':
-            return U(tok[1], self.expr())
-        if tok[0] == 'B':
-            a = self.expr()
-            b = self.expr()
-            return B(tok[1], a, b)
-        if tok == '?':
-            return If(self.expr(), self.expr(), self.expr())
-        if tok[0] == 'L':
-            return L(tok[1:], self.expr())
-        if tok[0] == 'v':
-            return V(tok[1:])
+        if tok[0] == 'I': return I(base94_to_base10(tok[1:]))
+        if tok[0] == 'S': return S(decode_s(tok))
+        if tok == 'T': return TF(True)
+        if tok == 'F': return TF(False)
+        if tok[0] == 'U': return U(tok[1], self.expr())
+        if tok[0] == 'B': return B(tok[1], self.expr(), self.expr())
+        if tok == '?': return If(self.expr(), self.expr(), self.expr())
+        if tok[0] == 'L': return L(tok[1:], self.expr())
+        if tok[0] == 'v': return V(tok[1:])
         assert False, f"unknown token: {tok}"
 
 def test(s, e):
