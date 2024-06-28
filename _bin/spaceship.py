@@ -33,7 +33,7 @@ def sub(p1, p2):
 
 path = []
 data = read()
-s = sorted(data, key=sort_key)
+s = sorted(data, key=closer_key)
 # problems 2, 5, 7, 9, 11, 17 are better w/o sorting
 # s=data
 
