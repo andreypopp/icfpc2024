@@ -13,8 +13,6 @@ def decode_s(s):
 def encode_s(s):
     return 'S' + ''.join([forward[c] for c in s])
 
-###
-
 import requests, os
 
 def req(command):
@@ -31,6 +29,10 @@ def save_input(task, num):
     with open(f'{task}_input/{num}.txt', 'w') as f:
         f.write(input)
 
+def save_output(task, num, data):
+    with open(f'{task}/{num}.txt', 'w') as f:
+        f.write(data)
+
 def get_input(task, num):
     if not os.path.exists(f'{task}_input/{num}.txt'):
         save_input(task, num)
@@ -44,18 +46,12 @@ def solve_and_submit(task, num, solve):
     input = get_input(task, num)
     output = solve(input)
     submit(task, num, output)
-
-###
-save_input('lambdaman', 8)
-
-###
-
-print(req('get lambdaman'))
+    save_output(task, num, output)
 
 ###
 
+save_input('spaceship', 23)
+###
 
-with open('lambdaman/12.txt') as f:
-    data = f.read().strip()
-    print(data)
-    print(req('solve lambdaman12 ' + data))
+# print(req('get lambdaman'))
+# print(req('get spaceship'))

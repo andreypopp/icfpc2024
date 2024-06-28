@@ -47,7 +47,7 @@ def solve(grid):
             if len(pseen) == card:
                 yield npath, pseen
                 continue
-            if 0 <= nx < rows and 0 <= ny < cols and grid[nx][ny] != 'x':
+            if 0 <= nx < rows and 0 <= ny < cols and grid[nx][ny] != '#':
                 npath = path + dir
                 moved = True
                 queue.append((nx, ny, npath, pseen))
@@ -157,6 +157,7 @@ def solve2(grid):
     last_run = ""
     paths = solve(grid)
     for path, pills in paths:
+        # input()
         if not pills_todo:
             break
         # print('cur', current)
@@ -174,4 +175,8 @@ def solve2(grid):
             last_run = path
     return current
 
-solve_and_submit('lambdaman', 20, solve2)
+for x in [8,9,10,11,12,13,14,15,16,17,18,19,20]:
+    try:
+        solve_and_submit('lambdaman', x, solve2)
+    except:
+        pass
