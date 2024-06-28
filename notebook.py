@@ -55,3 +55,14 @@ save_input('spaceship', 23)
 
 # print(req('get lambdaman'))
 # print(req('get spaceship'))
+print(req('get 3d'))
+# print(req('get efficiency'))
+
+###
+
+def y_combinator(f):
+    return (lambda x: x(x))(lambda y: f(lambda *args: y(y)(*args)))
+
+def rle(n, w):
+    if n == 0: return ''
+    else: return w+rle(n-1, w)
