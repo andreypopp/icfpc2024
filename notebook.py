@@ -72,6 +72,8 @@ def rle(n, w):
 class O:
     def __str__(self):
         return self.encode()
+    def subst(self, _v, _o):
+        return self
 
 class S(O):
     def __init__(self, v):
@@ -120,6 +122,9 @@ class U(O):
     def encode(self):
         return f'U{self.v} {self.x.encode()}'
 
+    def subst(self, v, o):
+        return U(self.v, self.x.subst(v))
+
     def eval(self):
         if self.v == '-':
             x = self.x.eval()
@@ -148,6 +153,9 @@ class B(O):
         self.v = v
         self.a = a
         self.b = b
+
+    def subst(self, v, o):
+        return B(self.v, self.a.subst(v, o), self.b.subst(v, o))
 
     def eval(self):
         if self.v == '+':
@@ -229,6 +237,9 @@ class B(O):
             assert isinstance(b, S)
             return S(b.v[a.v:])
         if self.v == '$':
+            a = self.a.eval()
+            assert isinstance(a, L)
+            return a.e.subst(a.v, self.b).eval()
             assert False, "not implemented"
         else:
             assert False, "unknown binary operator"
@@ -243,6 +254,8 @@ class If(O):
         self.e = e
     def encode(self):
         return f'? {self.c.encode()} {self.t.encode()} {self.e.encode()}'
+    def subst(self, v, o):
+        return If(self.c.subst(v, o), self.t.subst(v, o), self.e.subst(v, o))
     def eval(self):
         c = self.c.eval()
         assert isinstance(c, TF)
@@ -252,12 +265,32 @@ class If(O):
             return self.e.eval()
 
 class L(O):
-    def __init__(self, v, b):
+    def __init__(self, v, e):
         self.v = v
-        self.b = b
+        self.e = e
+
+    def eval(self):
+        return self
+
+    def subst(self, v, o):
+        if self.v == v: # avoid the capture
+            return self
+        return L(self.v, self.e.subst(v, o))
 
     def encode(self):
-        return f'L{self.v} {self.b.encode()}'
+        return f'L{self.v} {self.e.encode()}'
+
+class V(O):
+    def __init__(self, v):
+        self.v = v
+
+    def subst(self, v, o):
+        if self.v == v:
+            return o
+        return self
+
+    def encode(self):
+        return f'v{self.v}'
 
 def base94_to_base10(base94_num):
     b10 = 0
@@ -293,7 +326,9 @@ class parse:
         if tok == '?':
             return If(self.expr(), self.expr(), self.expr())
         if tok[0] == 'L':
-            return L(tok[1], self.expr())
+            return L(tok[1:], self.expr())
+        if tok[0] == 'v':
+            return V(tok[1:])
         assert False, f"unknown token: {tok}"
 
 def test(s, e):
@@ -322,4 +357,5 @@ test('B| T F', True)
 test('B& T F', False)
 test('B. S4% S34', 'test')
 test('BT I$ S4%34', 'tes')
-test('BD I$ S4%34', 't')
+test('B$ B$ L# L$ v# B. SB%,,/ S}Q/2,$_ IK', 'Hello World!')
+test('B$ L# B$ L" B+ v" v" B* I$ I# v8', parse('I-').expr().v)
