@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys
+import sys, functools, math
 
 def read():
     ret = []
@@ -12,8 +12,18 @@ def read():
         ret.append((int(x), int(y)))
     return ret
 
-def key(v):
+
+
+def sort_key(v):
     return max(abs(v[0]), abs(v[1]))
+
+def closer_key(v):
+    # return sort_key(v) # <- initially problems solved with it
+    return abs(v[0]) + abs(v[1])
+
+# sign = functools.partial(math.copysign, 1)
+# def sort_key(v):
+#     return key(v)
 
 def add(p1, p2):
     return (p1[0] + p2[0], p1[1] + p2[1])
@@ -23,7 +33,7 @@ def sub(p1, p2):
 
 path = []
 data = read()
-s = sorted(data, key=key)
+s = sorted(data, key=sort_key)
 # problems 2, 5, 7, 9, 11, 17 are better w/o sorting
 # s=data
 
@@ -41,7 +51,7 @@ def step_to(target):
     for vd, n in vs.items():
         new_v = add(v, vd)
         new_pos = add(pos, new_v)
-        new_pos_d = key(sub(target, new_pos))
+        new_pos_d = closer_key(sub(target, new_pos))
         if best_pos_d is None or new_pos_d < best_pos_d:
             best_pos_d = new_pos_d
             best_pos = new_pos
@@ -49,6 +59,7 @@ def step_to(target):
             best_n = n
         if new_pos_d == 0:
             break
+    # print("pos", pos, "target", target, "d", d,"v", v, "best_pos_d", best_pos_d, "best_pos", best_pos)
     path.append(best_n)
     v = best_v
     pos = best_pos
