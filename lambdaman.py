@@ -151,10 +151,6 @@ x..........................x
 xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 """
 
-i8 = open('./lambdaman_input/8.txt').read().strip()
-i11 = open('./lambdaman_input/11.txt').read().strip()
-i12 = open('./lambdaman_input/12.txt').read().strip()
-
 def solve2(grid):
     pills_todo = gpills(grid)
     current = ""
@@ -178,5 +174,4 @@ def solve2(grid):
             last_run = path
     return current
 
-with open('./lambdaman/12.txt', 'w') as f:
-    f.write(solve2(i12))
+solve_and_submit('lambdaman', 20, solve2)

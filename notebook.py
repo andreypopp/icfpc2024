@@ -15,7 +15,7 @@ def encode_s(s):
 
 ###
 
-import requests
+import requests, os
 
 def req(command):
     r = requests.post(
@@ -27,8 +27,23 @@ def req(command):
     return decode_s(r.text)
 
 def save_input(task, num):
+    input = req(f'get {task}{num}')
     with open(f'{task}_input/{num}.txt', 'w') as f:
-        f.write(req(f'get {task}{num}'))
+        f.write(input)
+
+def get_input(task, num):
+    if not os.path.exists(f'{task}_input/{num}.txt'):
+        save_input(task, num)
+    with open(f'{task}_input/{num}.txt') as f:
+        return f.read().strip()
+
+def submit(task, num, data):
+    print(req(f'solve {task}{num} {data}'))
+
+def solve_and_submit(task, num, solve):
+    input = get_input(task, num)
+    output = solve(input)
+    submit(task, num, output)
 
 ###
 save_input('lambdaman', 8)
@@ -44,4 +59,3 @@ with open('lambdaman/12.txt') as f:
     data = f.read().strip()
     print(data)
     print(req('solve lambdaman12 ' + data))
-
