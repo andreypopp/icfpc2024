@@ -21,7 +21,8 @@ if os.environ.get('ICFP_DECODE_TEST', False):
     # Test the function
     test_strings = [
         r"SB%,,/}Q/2,$_",
-        "S'%4}).$%8"
+        "S'%4}).$%8",
+        "S'%4}3#/2%\"/!2$~"
         # "SB%,,/}Q/2,$_",  # "Hello World!"
         # "S4%34",          # "test"
         # "S9%3",           # "yes"
