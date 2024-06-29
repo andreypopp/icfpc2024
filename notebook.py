@@ -55,27 +55,33 @@ save_input('spaceship', 23)
 
 # print(req('get lambdaman'))
 # print(req('get spaceship'))
-print(req('get 3d'))
+print(req('get scoreboard'))
 # print(req('get efficiency'))
 
-###
-
-def y_combinator(f):
-    return (lambda x: x(x))(lambda y: f(lambda *args: y(y)(*args)))
-
-def rle(n, w):
-    if n == 0: return ''
-    else: return w+rle(n-1, w)
 
 ### expressions
 
+import ipdb
+import rich, rich.tree
+
 class O:
     def __str__(self):          return self.encode()
+    def __repr__(self):         return self.encode()
     def subst(self, _v, _o):    return self
-    def expect_I(self):     assert isinstance(self, I);  return self
-    def expect_S(self):     assert isinstance(self, S);  return self
-    def expect_TF(self):    assert isinstance(self, TF); return self
-    def expect_L(self):     assert isinstance(self, L);  return self
+    def expect_I(self):
+        if not isinstance(self, I): ipdb.set_trace()
+        return self
+    def expect_S(self):     
+        if not isinstance(self, S): ipdb.set_trace()
+        return self
+    def expect_TF(self):
+        if not isinstance(self, TF): ipdb.set_trace()
+        return self
+    def expect_L(self):
+        if not isinstance(self, L): ipdb.set_trace()
+        return self
+    def as_tree(self):
+        return rich.tree.Tree(self.encode())
 
 class S(O):
     def __init__(self, v): self.v = v
@@ -134,6 +140,11 @@ class U(O):
     def __str__(self):
         return f'U({self.v}, {self.x})'
 
+    def as_tree(self):
+        t = rich.tree.Tree(f'U{self.v}')
+        t.add(self.x.as_tree())
+        return t
+
 class B(O):
     def __init__(self, v, a, b):
         assert v in {'+', '-', '*', '/', '%', '<', '>', '=', '&', '|', '.',
@@ -167,7 +178,7 @@ class B(O):
         if self.v == '|':
             return TF(self.a.eval().expect_TF().v or self.b.eval().expect_TF().v)
         if self.v == '.':
-            return TF(self.a.eval().expect_S().v + self.b.eval().expect_S().v)
+            return S(self.a.eval().expect_S().v + self.b.eval().expect_S().v)
         if self.v == 'T': # take
             return S(self.b.eval().expect_S().v[:self.a.eval().expect_I().v])
         if self.v == 'D': # drop
@@ -180,6 +191,12 @@ class B(O):
 
     def encode(self):
         return f'B{self.v} {self.a.encode()} {self.b.encode()}'
+
+    def as_tree(self):
+        t = rich.tree.Tree(f'B{self.v}')
+        t.add(self.a.as_tree())
+        t.add(self.b.as_tree())
+        return t
 
 class If(O):
     def __init__(self, c, t, e):
@@ -196,6 +213,13 @@ class If(O):
         if c.v: return self.t.eval()
         else: return self.e.eval()
 
+    def as_tree(self):
+        t = rich.tree.Tree('?')
+        t.add(self.c.as_tree())
+        t.add(self.t.as_tree())
+        t.add(self.e.as_tree())
+        return t
+
 class L(O):
     def __init__(self, v, e):
         self.v = v
@@ -211,6 +235,11 @@ class L(O):
 
     def encode(self):
         return f'L{self.v} {self.e.encode()}'
+
+    def as_tree(self):
+        t = rich.tree.Tree(f'L{self.v}')
+        t.add(self.e.as_tree())
+        return t
 
 class V(O):
     def __init__(self, v):
