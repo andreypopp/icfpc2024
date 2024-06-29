@@ -1,3 +1,7 @@
+import requests, os
+import ipdb
+# import rich, rich.tree
+
 enc = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`|~ \n"
 dec = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ "
 
@@ -12,8 +16,6 @@ def decode_s(s):
 
 def encode_s(s):
     return 'S' + ''.join([forward[c] for c in s])
-
-import requests, os
 
 def req(command):
     r = requests.post(
@@ -48,21 +50,6 @@ def solve_and_submit(task, num, solve):
     submit(task, num, output)
     save_output(task, num, output)
 
-###
-
-save_input('spaceship', 23)
-###
-
-# print(req('get lambdaman'))
-# print(req('get spaceship'))
-print(req('get scoreboard'))
-# print(req('get efficiency'))
-
-
-### expressions
-
-import ipdb
-import rich, rich.tree
 
 class O:
     def __str__(self):          return self.encode()
@@ -82,18 +69,25 @@ class O:
         return self
     def as_tree(self):
         return rich.tree.Tree(self.encode())
+    def compile(self):
+        return compile(ctx(), self)
+    def eval_bytecode(self):
+        return eval_bytecode(compile(ctx(), self))
 
 class S(O):
+    __slots__ = ['v']
     def __init__(self, v): self.v = v
     def encode(self): return encode_s(self.v)
-    def eval(self): return self
+    def as_tree(self): return rich.tree.Tree(f'S({self.v})')
 
 class TF(O):
+    __slots__ = ['v']
     def __init__(self, v): self.v = v
     def encode(self): return 'T' if self.v else 'F'
-    def eval(self): return self
+    def as_tree(self): return rich.tree.Tree(f'TF({self.v})')
 
 class I(O):
+    __slots__ = ['v']
     alphabet = [ord('!')+x for x in range(94)]
     alphabet = (''.join([chr(x) for x in alphabet]))
 
@@ -111,9 +105,7 @@ class I(O):
             v //= 94
         return 'I'+b94
 
-    def eval(self):
-        return self
-
+    def as_tree(self): return rich.tree.Tree(f'I({self.v})')
 
 class U(O):
     def __init__(self, v, x):
@@ -127,16 +119,6 @@ class U(O):
     def subst(self, v, o):
         return U(self.v, self.x.subst(v))
 
-    def eval(self):
-        if self.v == '-':
-            return I(-self.x.eval().expect_I().v)
-        if self.v == '!':
-            return TF(not self.x.eval().expect_TF().v)
-        if self.v == '#':
-            return I(base94_to_base10(self.x.eval().expect_S().encode()[1:]))
-        if self.v == '$':
-            return S(decode_s('S' + self.x.eval().expect_I().encode()[1:]))
-        assert False, "unknown unary operator"
     def __str__(self):
         return f'U({self.v}, {self.x})'
 
@@ -156,39 +138,6 @@ class B(O):
     def subst(self, v, o):
         return B(self.v, self.a.subst(v, o), self.b.subst(v, o))
 
-    def eval(self):
-        if self.v == '+':
-            return I(self.a.eval().expect_I().v + self.b.eval().expect_I().v)
-        if self.v == '-':
-            return I(self.a.eval().expect_I().v - self.b.eval().expect_I().v)
-        if self.v == '*':
-            return I(self.a.eval().expect_I().v * self.b.eval().expect_I().v)
-        if self.v == '/':
-            return I(self.a.eval().expect_I().v // self.b.eval().expect_I().v)
-        if self.v == '%':
-            return I(self.a.eval().expect_I().v % self.b.eval().expect_I().v)
-        if self.v == '<':
-            return TF(self.a.eval().expect_I().v < self.b.eval().expect_I().v)
-        if self.v == '>':
-            return TF(self.a.eval().expect_I().v > self.b.eval().expect_I().v)
-        if self.v == '=':
-            return TF(self.a.eval().expect_I().v == self.b.eval().expect_I().v)
-        if self.v == '&':
-            return TF(self.a.eval().expect_TF().v and self.b.eval().expect_TF().v)
-        if self.v == '|':
-            return TF(self.a.eval().expect_TF().v or self.b.eval().expect_TF().v)
-        if self.v == '.':
-            return S(self.a.eval().expect_S().v + self.b.eval().expect_S().v)
-        if self.v == 'T': # take
-            return S(self.b.eval().expect_S().v[:self.a.eval().expect_I().v])
-        if self.v == 'D': # drop
-            return S(self.b.eval().expect_S().v[self.a.eval().expect_I().v:])
-        if self.v == '$':
-            a = self.a.eval().expect_L()
-            return a.e.subst(a.v, self.b).eval()
-        else:
-            assert False, f"unknown binary operator: {self.v}"
-
     def encode(self):
         return f'B{self.v} {self.a.encode()} {self.b.encode()}'
 
@@ -207,11 +156,6 @@ class If(O):
         return f'? {self.c.encode()} {self.t.encode()} {self.e.encode()}'
     def subst(self, v, o):
         return If(self.c.subst(v, o), self.t.subst(v, o), self.e.subst(v, o))
-    def eval(self):
-        c = self.c.eval()
-        assert isinstance(c, TF)
-        if c.v: return self.t.eval()
-        else: return self.e.eval()
 
     def as_tree(self):
         t = rich.tree.Tree('?')
@@ -224,9 +168,6 @@ class L(O):
     def __init__(self, v, e):
         self.v = v
         self.e = e
-
-    def eval(self):
-        return self
 
     def subst(self, v, o):
         if self.v == v: # avoid the capture
@@ -262,7 +203,7 @@ def base94_to_base10(base94_num):
         power += 1
     return b10
 
-class parse:
+class parser:
     def __init__(self, s):
         self.tokens = s.split(' ')
     def expr(self):
@@ -278,8 +219,242 @@ class parse:
         if tok[0] == 'v': return V(tok[1:])
         assert False, f"unknown token: {tok}"
 
+def parse(s):
+    return parser(s).expr()
+
+class ctx:
+    n = 0
+    def __init__(self, subst={}):
+        self.code = []
+        self.subst = {**subst}
+    def emit(self, x):
+        self.code.append(x)
+        return len(self.code) - 1
+    def patch(self, idx):
+        self.code[idx] = len(self.code)
+    def fresh(self):
+        self.__class__.n += 1
+        return self.__class__.n
+    def subctx(self, subst={}):
+        return ctx(subst={**self.subst, **subst})
+
+def compile(ctx, self):
+    if isinstance(self, (S, I, TF)):
+        ctx.emit(self)
+    elif isinstance(self, U):
+        compile(ctx, self.x)
+        ctx.emit(f'U{self.v}')
+    elif isinstance(self, B):
+        if self.v == '$':
+            compile(ctx, self.a)
+            subctx = ctx.subctx()
+            code = compile(subctx, self.b)
+            subctx.emit('RETURN')
+            ctx.emit(FunApp(code))
+        else:
+            compile(ctx, self.a)
+            compile(ctx, self.b)
+            ctx.emit(f'B{self.v}')
+    elif isinstance(self, If):
+        compile(ctx, self.c)
+        ctx.emit('JE')
+        je = ctx.emit(None)
+        compile(ctx, self.t)
+        ctx.emit('J')
+        js = ctx.emit(None)
+        ctx.patch(je)
+        compile(ctx, self.e)
+        ctx.patch(js)
+    elif isinstance(self, L):
+        sym = ctx.fresh()
+        subctx = ctx.subctx({self.v: sym})
+        code = compile(subctx, self.e)
+        subctx.emit('RETURN')
+        ctx.emit(Fun(sym, code))
+    elif isinstance(self, V):
+        sym = ctx.subst.get(self.v)
+        if sym:
+            ctx.emit(RefThunk(sym))
+        else:
+            print(f"WARN: unknown variable: {self.v}")
+            ctx.emit('ERROR')
+    return ctx.code
+
+class Fun:
+    __slots__ = ['sym', 'code']
+    def __init__(self, sym, code):
+        self.sym = sym
+        self.code = code
+
+    def __str__(self):
+        return f'Fun({self.sym}, {self.code})'
+    __repr__ = __str__
+
+class FunApp:
+    __slots__ = ['code', 'locals']
+    def __init__(self, code, locals=None):
+        self.code = code
+        self.locals = locals or {}
+
+    def __str__(self):
+        return f'FunApp({self.code})'
+    __repr__ = __str__
+
+class RefThunk:
+    __slots__ = ['sym']
+    def __init__(self, sym):
+        self.sym = sym
+
+    def __str__(self):
+        return f'RefThunk({self.sym})'
+    __repr__ = __str__
+
+class Frame:
+    __slots__ = ['code', 'locals', 'len', 'ip']
+    def __init__(self, code, locals=None):
+        self.code = code
+        self.locals = locals or {}
+        self.len = len(code)
+        self.ip = 0
+
+class Closure:
+    __slots__ = ['sym', 'code', 'locals']
+    def __init__(self, sym, code, locals):
+        self.sym = sym
+        self.code = code
+        self.locals = locals
+
+    def __str__(self):
+        return f'Closure({self.sym}, {self.code}, {self.locals})'
+    __repr__ = __str__
+
+def eval_bytecode(code):
+    stack = []
+    frames = []
+    frame = Frame(code)
+    while frame.ip < frame.len:
+        self = frame.code[frame.ip]
+        if isinstance(self, (S, I, TF)):
+            stack.append(self)
+        elif isinstance(self, Fun):
+            stack.append(Closure(self.sym, self.code, frame.locals))
+        elif isinstance(self, RefThunk):
+            thunk = frame.locals[self.sym]
+            assert isinstance(thunk, FunApp)
+            frame.ip += 1
+            frames.append(frame)
+            frame = Frame(thunk.code, locals=thunk.locals)
+            continue
+        elif isinstance(self, FunApp):
+            f = stack.pop()
+            assert isinstance(f, Closure)
+            frame.ip += 1
+            frames.append(frame)
+            self = FunApp(self.code, locals=frame.locals)
+            frame = Frame(f.code, locals={**f.locals, f.sym: self})
+            continue
+        elif self == 'RETURN':
+            frame = frames.pop()
+            continue
+        elif self == 'U-':
+            # x = stack.pop().expect_I().v
+            x = stack.pop().v
+            stack.append(I(-x))
+        elif self == 'U!':
+            # x = stack.pop().expect_TF().v
+            x = stack.pop().v
+            stack.append(TF(not x))
+        elif self == 'U#':
+            # x = stack.pop().expect_S().encode()
+            x = stack.pop().encode()
+            stack.append(I(base94_to_base10(x[1:])))
+        elif self == 'U$':
+            # x = stack.pop().expect_I().encode()
+            x = stack.pop().encode()
+            stack.append(S(decode_s('S' + x[1:])))
+        elif self == 'B+':
+            # y = stack.pop().expect_I().v
+            # x = stack.pop().expect_I().v
+            y = stack.pop().v
+            x = stack.pop().v
+            stack.append(I(x + y))
+        elif self == 'B-':
+            y = stack.pop().v
+            x = stack.pop().v
+            stack.append(I(x - y))
+        elif self == 'B*':
+            y = stack.pop().v
+            x = stack.pop().v
+            stack.append(I(x * y))
+        elif self == 'B/':
+            y = stack.pop().v
+            x = stack.pop().v
+            v = abs(x) // abs(y)
+            if x * y < 0:
+                v = -v
+            stack.append(I(v))
+        elif self == 'B%':
+            y = stack.pop().v
+            x = stack.pop().v
+            v = abs(x) % abs(y)
+            if x * y < 0:
+                v = -v
+            stack.append(I(v))
+        elif self == 'B<':
+            y = stack.pop().v
+            x = stack.pop().v
+            stack.append(TF(x < y))
+        elif self == 'B>':
+            y = stack.pop().v
+            x = stack.pop().v
+            stack.append(TF(x > y))
+        elif self == 'B=':
+            y = stack.pop().v
+            x = stack.pop().v
+            stack.append(TF(x == y))
+        elif self == 'B&':
+            y = stack.pop().v
+            x = stack.pop().v
+            stack.append(TF(x and y))
+        elif self == 'B|':
+            y = stack.pop().v
+            x = stack.pop().v
+            stack.append(TF(x or y))
+        elif self == 'B$':
+            y = stack.pop()
+            x = stack.pop().v
+            stack.append(TF(x or y))
+        elif self == 'B.':
+            y = stack.pop().v
+            x = stack.pop().v
+            stack.append(S(x + y))
+        elif self == 'BT': # take
+            y = stack.pop().v
+            x = stack.pop().v
+            stack.append(S(y[:x]))
+        elif self == 'BD': # drop
+            y = stack.pop().v
+            x = stack.pop().v
+            stack.append(S(y[x:]))
+        elif self == 'JE':
+            c = stack.pop().v
+            frame.ip += 1
+            if not c:
+                frame.ip = frame.code[frame.ip]
+                continue
+        elif self == 'J':
+            frame.ip += 1
+            frame.ip = frame.code[frame.ip]
+            continue
+        else:
+            assert False, f"unknown instruction: {self}"
+        frame.ip += 1
+    assert len(stack) == 1
+    return stack[0]
+
 def test(s, e):
-    v = parse(s).expr().eval().v
+    # rich.print(parse(s).as_tree())
+    v = parse(s).eval_bytecode().v
     assert v == e, f"expected {e}, got {v}"
 
 test('T', True)
@@ -295,8 +470,9 @@ test('U$ I4%34', 'test')
 test('B+ I# I$', 5)
 test('B- I$ I#', 1)
 test('B* I$ I#', 6)
-# TODO: test('B/ U- I( I#', -3)
-# TODO: test('B% U- I( I#', -1)
+test('B/ U- I( I#', -3)
+test('B% U- I( I#', -1)
+test('? B> I# I$ S9%3 S./', 'no')
 test('B< I$ I#', False)
 test('B> I$ I#', True)
 test('B= I$ I#', False)
@@ -305,5 +481,17 @@ test('B& T F', False)
 test('B. S4% S34', 'test')
 test('BT I$ S4%34', 'tes')
 test('B$ B$ L# L$ v# B. SB%,,/ S}Q/2,$_ IK', 'Hello World!')
-test('B$ L# B$ L" B+ v" v" B* I$ I# v8', parse('I-').expr().v)
+test('B$ L# B$ L" B+ v" v" B* I$ I# v8', parse('I-').v)
 test('B$ B$ L" B$ L# B$ v" B$ v# v# L# B$ v" B$ v# v# L" L# ? B= v# I! I" B$ L$ B+ B$ v" v$ B$ v" v$ B- v# I" I%', 16)
+
+def req(command):
+    r = requests.post(
+        'https://boundvariable.space/communicate',
+        data=encode_s(command),
+        headers={'Authorization': 'Bearer 808ca256-780f-4a6d-81cb-f89355cd7440'}
+    )
+    e = parse(r.text)
+    return e.eval_bytecode().v
+
+# print(req('get lambdaman21'))
+# submit('efficiency', 4, '2')
