@@ -58,7 +58,7 @@ class O:
     def expect_I(self):
         if not isinstance(self, I): ipdb.set_trace()
         return self
-    def expect_S(self):     
+    def expect_S(self):
         if not isinstance(self, S): ipdb.set_trace()
         return self
     def expect_TF(self):
@@ -276,7 +276,7 @@ def compile(ctx, self):
         if sym:
             ctx.emit(RefThunk(sym))
         else:
-            print(f"WARN: unknown variable: {self.v}")
+            # print(f"WARN: unknown variable: {self.v}")
             ctx.emit('ERROR')
     return ctx.code
 
@@ -492,6 +492,12 @@ def req(command):
     )
     e = parse(r.text)
     return e.eval_bytecode().v
+
+if __name__ == '__main__':
+    import sys
+    s = sys.stdin.read()
+    v = parse(s).eval_bytecode().v
+    print(v)
 
 # print(req('get lambdaman21'))
 # submit('efficiency', 4, '2')
