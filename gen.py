@@ -142,6 +142,70 @@ def rle_encode(data):
     # print(rle("U" * 20 + 'R' * 10))
 
 def test(): pass
+# RRRRRRRRRDRRURRRRRRRRRDRRURRRRRRRRRDRRURRRRRRRRRDRRURRRRLDLLLLLLLLLULLDLLLLLLLLLULLDLLLLLLLLLULLDLLLLLLLLLULLDLLLLDRRRRRRRRRDRRURRRRRRRRRDRRURRRRRRRRRDRRURRRRRRRRRDRRURRRRRDULLD
+def lambdaman10():
+    lines = [l.strip() for l in open('lambdaman_input/10.txt').readlines()]
+    i = 0
+    j = 0
+    dir = 'R'
+    res = ""
+    w = len(lines[0])
+    while i < len(lines):
+        line = lines[i]
+        is_last = i == len(lines) - 1
+        if i % 2 == 0:
+            while True:
+                if j < w - 1 and line[j + 1] == '.':
+                    res += 'R'
+                    j += 1
+                    continue
+                if j < w - 2 and line[j + 1] == '#':
+                    res += 'DRRU'
+                    j += 2
+                    continue
+                # move next line
+                if j == w - 2 and line[j + 1] == '#':
+                    res += 'DR'
+                    j = w - 1
+                    break
+                if j == w - 1:
+                    if lines[i + 1][w - 1] == '#':
+                        res += 'LD'
+                        j = w - 2
+                    else:
+                        res += 'D'
+                        j = w - 1
+                    break
+                assert False
+        else:
+            while True:
+                if j > 0 and line[j - 1] == '.':
+                    res += 'L'
+                    j -= 1
+                    continue
+                if j > 1 and line[j - 1] == '#':
+                    res += 'ULLD'
+                    j -= 2
+                    continue
+                # move next line
+                if j == 1 and line[j - 1] == '#':
+                    res += 'DL'
+                    j = 0
+                    break
+                if j == 0:
+                    if not is_last and lines[i + 1][0] == '#':
+                        res += 'RD'
+                        j = 1
+                    elif not is_last:
+                        res += 'D'
+                        j = 0
+                    break
+                assert False
+        # print(res)
+        # print(j, w)
+        # sys.exit(1)
+        i += 1
+    return solve('lambdaman10', rle_encode(res))
 
 if __name__ == '__main__':
     import sys
@@ -151,8 +215,8 @@ if __name__ == '__main__':
             'solve_rle': lambda: solve(sys.argv[2].strip(), rle_encode(open(sys.argv[3].strip()).read().strip())),
             'test': test,
             'lambdaman6': lambdaman6,
-            'lambdaman9': lambda: solve('lambdaman9', rle_encode(('R' * 49 + 'D' + 'L' * 49 + 'D')*25))
-
+            'lambdaman9': lambda: solve('lambdaman9', rle_encode(('R' * 49 + 'D' + 'L' * 49 + 'D')*25)),
+            'lambdaman10': lambdaman10
     }
     if len(sys.argv) < 2 or sys.argv[1] not in cmds:
         keys = '|'.join(cmds.keys())
