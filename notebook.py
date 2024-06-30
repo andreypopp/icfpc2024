@@ -280,6 +280,33 @@ def compile(ctx, self):
             ctx.emit('ERROR')
     return ctx.code
 
+def is_y_combinator(e):
+    assert isinstance(e, L)
+    s1 = e.v
+    def is_inner1(e, v2):
+        return (
+                isinstance(e, B) and e.v == '$' 
+                and isinstance(e.a, V) and e.a.v == v2
+                and isinstance(e.b, V) and e.b.v == v2
+        )
+    def is_inner2(e, v1, v2):
+        return (
+                isinstance(e, B) and e.v == '$' 
+                and isinstance(e.a, V) and e.a.v == v1
+                and is_inner1(e.b, v2)
+        )
+    def is_inner3(e, v1):
+        if not isinstance(e, L): return False
+        v2 = e.v
+        return is_inner2(e.e, v1, v2)
+    if not isinstance(e, L): return False
+    v1 = e.v
+    return (
+            isinstance(e.e, B) and e.e.v == '$' 
+            and is_inner3(e.e.a, v1)
+            and is_inner3(e.e.b, v1)
+    )
+
 class Fun:
     __slots__ = ['sym', 'code']
     def __init__(self, sym, code):
