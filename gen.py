@@ -151,6 +151,7 @@ if __name__ == '__main__':
             'solve_rle': lambda: solve(sys.argv[2].strip(), rle_encode(open(sys.argv[3].strip()).read().strip())),
             'test': test,
             'lambdaman6': lambdaman6,
+            'lambdaman9': lambda: solve('lambdaman9', rle_encode(('R' * 49 + 'D' + 'L' * 49 + 'D')*25))
 
     }
     if len(sys.argv) < 2 or sys.argv[1] not in cmds:
