@@ -495,7 +495,7 @@ def req(command):
 
 if __name__ == '__main__':
     import sys
-    s = sys.stdin.read()
+    s = sys.stdin.read().strip()
     v = parse(s).eval_bytecode().v
     print(v)
 
