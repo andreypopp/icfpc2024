@@ -12,10 +12,14 @@ class L(Lbase):
 def solve(what, e):
     return B('.', S(f'solve {what} '), e)
 
+def app(lmd, arg):
+    return B('$', lmd, arg)
+
 def lambdaman6():
     def dup():
         return L(lambda v: B('.', v, v))
-    r = B('$', dup(), B('$', dup(), B('$', dup(), S('R' * 25))))
+    def with_dup(f): return app(f, dup())
+    r = with_dup(L(lambda dup: app(dup, app(dup, app(dup, S('R' * 25))))))
     return solve('lambdaman6', r)
 
 if __name__ == '__main__':
