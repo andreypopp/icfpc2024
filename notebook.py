@@ -1,6 +1,6 @@
 import requests, os
 import ipdb
-# import rich, rich.tree
+import rich, rich.tree
 
 enc = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`|~ \n"
 dec = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ "
@@ -97,7 +97,7 @@ class I(O):
     def encode(self):
         v = self.v
         if v == 0:
-            return "0"
+            return "I!"
         b94 = ""
         while v > 0:
             remainder = v % 94
@@ -435,6 +435,7 @@ def eval_bytecode(code):
         elif self == 'BD': # drop
             y = stack.pop().v
             x = stack.pop().v
+            # print("DROP", y, x)
             stack.append(S(y[x:]))
         elif self == 'JE':
             c = stack.pop().v
