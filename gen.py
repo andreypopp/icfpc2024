@@ -207,6 +207,26 @@ def lambdaman10():
         i += 1
     return solve('lambdaman10', rle_encode(res))
 
+def lambdaman9():
+    # 'lambdaman9': lambda: solve('lambdaman9', rle_encode(('R' * 49 + 'D' + 'L' * 49 + 'D')*25)),
+    dup = L(lambda what: L(lambda self : L(lambda count: If(
+            eq(count, I(1)),
+            what,
+            concat(what, app(app(self, self), decr(count))))
+    )))
+
+    main = L(lambda dup:
+              app(app_self(app(dup,
+              concat(app(app_self(app(dup, S('R'))), I(49)),
+              concat(S('D'),
+                  concat(
+                    app(app_self(app(dup, S('L'))), I(49)),
+                    S('D')
+                  ))))), I(25))
+            )
+    e = solve('lambdaman9', app(main, dup))
+    return e
+
 if __name__ == '__main__':
     import sys
     cmds = {
@@ -215,7 +235,8 @@ if __name__ == '__main__':
             'solve_rle': lambda: solve(sys.argv[2].strip(), rle_encode(open(sys.argv[3].strip()).read().strip())),
             'test': test,
             'lambdaman6': lambdaman6,
-            'lambdaman9': lambda: solve('lambdaman9', rle_encode(('R' * 49 + 'D' + 'L' * 49 + 'D')*25)),
+            # 'lambdaman9': lambda: solve('lambdaman9', rle_encode(('R' * 49 + 'D' + 'L' * 49 + 'D')*25)),
+            'lambdaman9': lambdaman9,
             'lambdaman10': lambdaman10
     }
     if len(sys.argv) < 2 or sys.argv[1] not in cmds:
