@@ -1,6 +1,7 @@
 import requests, os
 import ipdb
 import rich, rich.tree
+import ctypes, struct
 
 enc = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`|~ \n"
 dec = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ "
@@ -70,9 +71,15 @@ class O:
     def as_tree(self):
         return rich.tree.Tree(self.encode())
     def compile(self):
-        return compile(ctx(), self)
+        return compile(root_ctx(), self)
     def eval_bytecode(self):
-        return eval_bytecode(compile(ctx(), self))
+        return eval_bytecode(self.compile())
+    def dump_bytecode(self):
+        chunks = self.compile()
+        for i, code in enumerate(chunks):
+            print(f'CHUNK {i}')
+            for x in code:
+                print(f'  {x}')
 
 class S(O):
     __slots__ = ['v']
@@ -222,21 +229,54 @@ class parser:
 def parse(s):
     return parser(s).expr()
 
-class ctx:
-    n = 0
-    def __init__(self, subst={}):
-        self.code = []
-        self.subst = {**subst}
+class base_ctx:
     def emit(self, x):
         self.code.append(x)
         return len(self.code) - 1
     def patch(self, idx):
         self.code[idx] = len(self.code)
-    def fresh(self):
-        self.__class__.n += 1
-        return self.__class__.n
+
     def subctx(self, subst={}):
-        return ctx(subst={**self.subst, **subst})
+        ctx = sub_ctx(
+            id=len(self.chunks),
+            parent=self.parent,
+            subst={**self.subst, **subst}
+        )
+        self.chunks.append(ctx.code)
+        return ctx
+
+class root_ctx(base_ctx):
+    def __init__(self):
+        self.n = 0
+        self.code = []
+        self.chunks = [self.code]
+        self.subst = {}
+        self.parent = self
+
+    def fresh(self):
+        self.n += 1
+        return self.n
+
+class sub_ctx(base_ctx):
+    def __init__(self, id, parent, subst):
+        self.id = id
+        self.code = []
+        self.parent = parent
+        self.subst = subst
+
+    @property
+    def chunks(self):
+        return self.parent.chunks
+
+    def fresh(self):
+        return self.parent.fresh()
+
+class cprogram(ctypes.Structure):
+    _fields_ = [
+        ('chunks', ctypes.POINTER(ctypes.c_char_p)),
+        ('len', ctypes.c_int),
+        ('ip', ctypes.c_int),
+    ]
 
 def compile(ctx, self):
     if isinstance(self, (S, I, TF)):
@@ -248,9 +288,10 @@ def compile(ctx, self):
         if self.v == '$':
             compile(ctx, self.a)
             subctx = ctx.subctx()
-            code = compile(subctx, self.b)
+            compile(subctx, self.b)
             subctx.emit('RETURN')
-            ctx.emit(FunApp(code))
+            ctx.emit('ARG')
+            ctx.emit(subctx.id)
         else:
             compile(ctx, self.a)
             compile(ctx, self.b)
@@ -268,17 +309,20 @@ def compile(ctx, self):
     elif isinstance(self, L):
         sym = ctx.fresh()
         subctx = ctx.subctx({self.v: sym})
-        code = compile(subctx, self.e)
+        compile(subctx, self.e)
         subctx.emit('RETURN')
-        ctx.emit(Fun(sym, code))
+        ctx.emit('FUN')
+        ctx.emit(subctx.id)
+        ctx.emit(sym)
     elif isinstance(self, V):
         sym = ctx.subst.get(self.v)
         if sym:
-            ctx.emit(RefThunk(sym))
+            ctx.emit('USEARG')
+            ctx.emit(sym)
         else:
             # print(f"WARN: unknown variable: {self.v}")
             ctx.emit('ERROR')
-    return ctx.code
+    return ctx.chunks
 
 class Fun:
     __slots__ = ['sym', 'code']
@@ -290,14 +334,15 @@ class Fun:
         return f'Fun({self.sym}, {self.code})'
     __repr__ = __str__
 
-class FunApp:
-    __slots__ = ['code', 'locals']
+class FunArg:
+    __slots__ = ['code', 'locals', 'cached']
     def __init__(self, code, locals=None):
         self.code = code
         self.locals = locals or {}
+        self.cached = None
 
     def __str__(self):
-        return f'FunApp({self.code})'
+        return f'FunArg({self.code})'
     __repr__ = __str__
 
 class RefThunk:
@@ -328,33 +373,49 @@ class Closure:
         return f'Closure({self.sym}, {self.code}, {self.locals})'
     __repr__ = __str__
 
-def eval_bytecode(code):
+def eval_bytecode(chunks):
     stack = []
     frames = []
-    frame = Frame(code)
+    frame = Frame(chunks[0])
+    caching = None
     while frame.ip < frame.len:
         self = frame.code[frame.ip]
         if isinstance(self, (S, I, TF)):
             stack.append(self)
-        elif isinstance(self, Fun):
-            stack.append(Closure(self.sym, self.code, frame.locals))
-        elif isinstance(self, RefThunk):
-            thunk = frame.locals[self.sym]
-            assert isinstance(thunk, FunApp)
+        elif self == 'FUN':
             frame.ip += 1
-            frames.append(frame)
-            frame = Frame(thunk.code, locals=thunk.locals)
+            code = chunks[frame.code[frame.ip]]
+            frame.ip += 1
+            sym = frame.code[frame.ip]
+            stack.append(Closure(sym, code, frame.locals))
+        elif self == 'USEARG':
+            frame.ip += 1
+            sym = frame.code[frame.ip]
+            frame.ip += 1
+            thunk = frame.locals[sym]
+            # assert isinstance(thunk, FunArg)
+            if thunk.cached is None:
+                frames.append(frame)
+                frame = Frame(thunk.code, locals=thunk.locals)
+                caching = thunk
+            else:
+                stack.append(thunk.cached)
             continue
-        elif isinstance(self, FunApp):
+        elif self == 'ARG':
             f = stack.pop()
-            assert isinstance(f, Closure)
+            # assert isinstance(f, Closure)
             frame.ip += 1
+            code = chunks[frame.code[frame.ip]]
+            frame.ip += 1
+            a = FunArg(code, locals=frame.locals)
             frames.append(frame)
-            self = FunApp(self.code, locals=frame.locals)
-            frame = Frame(f.code, locals={**f.locals, f.sym: self})
+            frame = Frame(f.code, locals={**f.locals, f.sym: a})
             continue
         elif self == 'RETURN':
             frame = frames.pop()
+            if caching is not None:
+                caching.cached = stack[-1]
+                caching = None
             continue
         elif self == 'U-':
             # x = stack.pop().expect_I().v
@@ -491,14 +552,17 @@ def req(command):
         data=encode_s(command),
         headers={'Authorization': 'Bearer 808ca256-780f-4a6d-81cb-f89355cd7440'}
     )
+    print(r.text)
     e = parse(r.text)
-    return e.eval_bytecode().v
+    print(e)
+    # e.dump_bytecode()
+    # return e.eval_bytecode().v
 
-if __name__ == '__main__':
-    import sys
-    s = sys.stdin.read().strip()
-    v = parse(s).eval_bytecode().v
-    print(v)
+# if __name__ == '__main__':
+#     import sys
+#     s = sys.stdin.read().strip()
+#     v = parse(s).eval_bytecode().v
+#     print(v)
 
-# print(req('get lambdaman21'))
+# print(req('get efficiency1'))
 # submit('efficiency', 4, '2')
